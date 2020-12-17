@@ -2075,13 +2075,20 @@ archs4x, archs4xd"
   [(set (match_operand:SI 0 "register_operand"                           "")
 	(mult:SI (sign_extend:SI (match_operand:HI 1 "register_operand"  ""))
 		 (sign_extend:SI (match_operand:HI 2 "nonmemory_operand" ""))))]
-  "TARGET_MPYW"
+  "TARGET_HAS_MPYW"
   "{
+    if (TARGET_DSP)
+      {
+	/* DSP variant of MPYW clobbers the accumulator registers.  */
+	operands[2] = force_reg (HImode, operands[2]);
+	emit_insn (gen_mulhisi3_dsp (operands[0], operands[1], operands[2]));
+	DONE;
+      }
     if (CONSTANT_P (operands[2]))
-    {
-      emit_insn (gen_mulhisi3_imm (operands[0], operands[1], operands[2]));
-      DONE;
-    }
+      {
+	emit_insn (gen_mulhisi3_imm (operands[0], operands[1], operands[2]));
+	DONE;
+      }
    }"
 )
 
@@ -2090,7 +2097,7 @@ archs4x, archs4xd"
 	(mult:SI (sign_extend:SI (match_operand:HI 1 "register_operand" "0,r,0,  0,  r"))
 		 (match_operand:HI 2 "short_const_int_operand"          "L,L,I,C16,C16")))]
   "TARGET_MPYW"
-  "mpyw%? %0,%1,%2"
+  "mpyw%?\\t%0,%1,%2"
   [(set_attr "length" "4,4,4,8,8")
    (set_attr "iscompact" "false")
    (set_attr "type" "mul16_em")
@@ -2103,7 +2110,7 @@ archs4x, archs4xd"
 	(mult:SI (sign_extend:SI (match_operand:HI 1 "register_operand"  "0,0,r"))
 		 (sign_extend:SI (match_operand:HI 2 "nonmemory_operand" "q,r,r"))))]
   "TARGET_MPYW"
-  "mpyw%? %0,%1,%2"
+  "mpyw%?\\t%0,%1,%2"
   [(set_attr "length" "*,4,4")
    (set_attr "iscompact" "maybe,false,false")
    (set_attr "type" "mul16_em")
@@ -2115,13 +2122,20 @@ archs4x, archs4xd"
   [(set (match_operand:SI 0 "register_operand"                           "")
 	(mult:SI (zero_extend:SI (match_operand:HI 1 "register_operand"  ""))
 		 (zero_extend:SI (match_operand:HI 2 "arc_short_operand" ""))))]
-  "TARGET_MPYW"
+  "TARGET_HAS_MPYW"
   "{
+    if (TARGET_DSP)
+      {
+	/* DSP variant of MPYW clobbers the accumulator registers.  */
+	operands[2] = force_reg (HImode, operands[2]);
+	emit_insn (gen_umulhisi3_dsp (operands[0], operands[1], operands[2]));
+	DONE;
+      }
     if (CONSTANT_P (operands[2]))
-    {
-      emit_insn (gen_umulhisi3_imm (operands[0], operands[1], operands[2]));
-      DONE;
-    }
+      {
+	emit_insn (gen_umulhisi3_imm (operands[0], operands[1], operands[2]));
+	DONE;
+      }
   }"
 )
 
@@ -2130,7 +2144,7 @@ archs4x, archs4xd"
 	(mult:SI (zero_extend:SI (match_operand:HI 1 "register_operand" "%0, r,  0,  0,  r"))
 		 (match_operand:HI 2 "short_unsigned_const_operand"     " L, L,J12,J16,J16")))]
   "TARGET_MPYW"
-  "mpyuw%? %0,%1,%2"
+  "mpyuw%?\\t%0,%1,%2"
   [(set_attr "length" "4,4,4,8,8")
    (set_attr "iscompact" "false")
    (set_attr "type" "mul16_em")
@@ -2143,7 +2157,7 @@ archs4x, archs4xd"
 	(mult:SI (zero_extend:SI (match_operand:HI 1 "register_operand" "%0, 0, r"))
 		 (zero_extend:SI (match_operand:HI 2 "register_operand"  "q, r, r"))))]
   "TARGET_MPYW"
-  "mpyuw%? %0,%1,%2"
+  "mpyuw%?\\t%0,%1,%2"
   [(set_attr "length" "*,4,4")
    (set_attr "iscompact" "maybe,false,false")
    (set_attr "type" "mul16_em")
@@ -6138,7 +6152,7 @@ archs4x, archs4xd"
    (clobber (reg:DI ARCV2_ACC))]
   "TARGET_PLUS_DMPY"
   "#"
-  "TARGET_PLUS_DMPY && reload_completed"
+  "&& reload_completed"
   [(const_int 0)]
   "{
    rtx acc_reg = gen_rtx_REG (DImode, ACC_REG_FIRST);
@@ -6170,7 +6184,7 @@ archs4x, archs4xd"
 		  (sign_extend:DI (match_dup 2)))
 	 (reg:DI ARCV2_ACC)))]
  "TARGET_PLUS_MACD"
- "macd %0,%1,%2"
+ "macd\\t%0,%1,%2"
   [(set_attr "length" "4,4,8")
    (set_attr "type" "multi")
    (set_attr "predicable" "yes,no,no")
@@ -6183,7 +6197,7 @@ archs4x, archs4xd"
 		  (sign_extend:DI (match_operand:SI 1 "extend_operand" "rI,i")))
 	 (reg:DI ARCV2_ACC)))]
  "TARGET_PLUS_DMPY"
- "mac 0,%0,%1"
+ "mac\\t0,%0,%1"
   [(set_attr "length" "4,8")
    (set_attr "type" "multi")
    (set_attr "predicable" "no")
@@ -6213,7 +6227,7 @@ archs4x, archs4xd"
 	  (reg:DI ARCV2_ACC))))
    (clobber (reg:DI ARCV2_ACC))]
  "TARGET_PLUS_DMPY"
- "mac %0,%1,%2"
+ "mac\\t%0,%1,%2"
   [(set_attr "length" "4,8")
    (set_attr "type" "multi")
    (set_attr "predicable" "no")
@@ -6240,7 +6254,7 @@ archs4x, archs4xd"
    (clobber (reg:DI ARCV2_ACC))]
   "TARGET_PLUS_DMPY"
   "#"
-  "TARGET_PLUS_DMPY && reload_completed"
+  "&& reload_completed"
   [(const_int 0)]
   "{
    rtx acc_reg = gen_rtx_REG (DImode, ACC_REG_FIRST);
@@ -6272,7 +6286,7 @@ archs4x, archs4xd"
 		  (zero_extend:DI (match_dup 2)))
 	 (reg:DI ARCV2_ACC)))]
  "TARGET_PLUS_MACD"
- "macdu %0,%1,%2"
+ "macdu\\t%0,%1,%2"
   [(set_attr "length" "4,4,8")
    (set_attr "type" "multi")
    (set_attr "predicable" "yes,no,no")
@@ -6285,7 +6299,7 @@ archs4x, archs4xd"
 		  (zero_extend:DI (match_operand:SI 1 "extend_operand" "rI,i")))
 	 (reg:DI ARCV2_ACC)))]
  "TARGET_PLUS_DMPY"
- "macu 0,%0,%1"
+ "macu\\t0,%0,%1"
   [(set_attr "length" "4,8")
    (set_attr "type" "multi")
    (set_attr "predicable" "no")
@@ -6315,7 +6329,7 @@ archs4x, archs4xd"
 	  (reg:DI ARCV2_ACC))))
    (clobber (reg:DI ARCV2_ACC))]
  "TARGET_PLUS_DMPY"
- "macu %0,%1,%2"
+ "macu\\r%0,%1,%2"
   [(set_attr "length" "4,8")
    (set_attr "type" "multi")
    (set_attr "predicable" "no")
